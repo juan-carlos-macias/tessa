@@ -1,0 +1,40 @@
+### Node ###
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build
+build/Release
+
+# Dependency directories
+node_modules/
+jspm_packages/
+mongo-test/
+
+
+# Optional npm cache directory
+.npm
+
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+.env.development
+.env.test
+.env.production
+
+# 
+config/development.js
+src/modules/common/plugins/firebaseLogin.ts
+src/routes/api/users/user.login.controller.ts
+src/serviceAccountKey.json
+.DS_Store
