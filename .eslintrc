@@ -1,0 +1,15 @@
+{
+    "root": true,
+    "plugins": ["@typescript-eslint", "prettier"],
+    "extends": ["airbnb-base", "airbnb-typescript/base", "prettier"],
+    "parserOptions": {
+        "ecmaVersion": 6,
+        "project": "./tsconfig.eslint.json"
+    },
+    "rules": {
+        "indent": ["error", 4],
+        "prettier/prettier": 2,
+        "no-underscore-dangle": "off"
+    },
+    "ignorePatterns": ["jest.config.js"]
+}
