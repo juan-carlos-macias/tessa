@@ -1,4 +1,8 @@
 {
+  "scripts": {
+      "lint": "eslint . --ext .ts",
+      "lint:fix": "eslint . --ext .ts --fix"
+  },
   "dependencies": {
     "config": "^3.3.12",
     "cors": "^2.8.5",
