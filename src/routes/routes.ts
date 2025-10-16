@@ -12,11 +12,7 @@ export default class Routes {
     }
 
     public setRoutes(): void {
-        this.app.use(
-            '/tessa/v1',
-            apiBasicAuthorization,
-            ApiRoutesV1.router
-        );
+        this.app.use('/tessa/v1', apiBasicAuthorization, ApiRoutesV1.router);
 
         this.app.get('/', (req, res) => {
             res.respond(

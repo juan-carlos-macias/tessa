@@ -1,3 +1,5 @@
+/* eslint-disable class-methods-use-this */
+
 import { Router, IRouter } from 'express';
 
 class ApiRoutes {
@@ -8,9 +10,7 @@ class ApiRoutes {
         this.setup();
     }
 
-    private setup(): void {
-      
-    }
+    private setup(): void {}
 }
 
 export default new ApiRoutes();
