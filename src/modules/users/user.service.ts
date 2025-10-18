@@ -21,7 +21,7 @@ class UserService {
     }
 
     public async getAllUsers(ownerId: Types.ObjectId): Promise<IUser[]> {
-        const users = await User.find({ownerId}).lean();
+        const users = await User.find({ ownerId }).lean();
         return users;
     }
 

@@ -16,7 +16,7 @@ const OwnerSchema = new Schema<IOwnerDocument>(
     {
         timestamps: true,
         versionKey: false,
-    },
+    }
 );
 
 const Owner = app.model<IOwnerDocument>('Owner', OwnerSchema, 'owners');

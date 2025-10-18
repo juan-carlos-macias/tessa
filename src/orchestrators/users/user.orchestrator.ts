@@ -102,7 +102,7 @@ class UserOrchestrator {
                     );
                 }
             }
-            
+
             throw new ApiError(
                 httpStatus.INTERNAL_SERVER_ERROR,
                 'Failed to delete user'
@@ -135,15 +135,13 @@ class UserOrchestrator {
                     );
                 }
             }
-            
+
             throw new ApiError(
                 httpStatus.INTERNAL_SERVER_ERROR,
                 'Failed to delete user'
             );
         }
     }
-
-    
 }
 
 export default UserOrchestrator;

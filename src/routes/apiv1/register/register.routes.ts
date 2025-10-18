@@ -6,11 +6,7 @@ class RegisterRoutes {
     public router: Router = Router();
 
     constructor() {
-        this.router.post(
-            '/',
-            Validation.createOwner(),
-            OwnerController.create
-        );
+        this.router.post('/', Validation.createOwner(), OwnerController.create);
     }
 }
 

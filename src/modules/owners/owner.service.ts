@@ -21,7 +21,6 @@ class OwnerService {
     }
 
     public async getOwnerById(id: Types.ObjectId): Promise<IOwner | null> {
-
         const owner = await Owner.findById(id).lean();
         if (!owner) {
             throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
@@ -31,7 +30,6 @@ class OwnerService {
     }
 
     public async deleteOwner(id: Types.ObjectId): Promise<void> {
-
         const owner = await Owner.findByIdAndDelete(id);
         if (!owner) {
             throw new ApiError(httpStatus.NOT_FOUND, 'User not found');

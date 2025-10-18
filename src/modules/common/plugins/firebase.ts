@@ -45,8 +45,7 @@ class Firebase {
     }
 
     public async deleteUser(uid: string): Promise<void> {
-            await this.auth.deleteUser(uid);
-       
+        await this.auth.deleteUser(uid);
     }
 }
 
