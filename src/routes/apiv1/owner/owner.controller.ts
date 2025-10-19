@@ -33,7 +33,7 @@ class OwnerController {
     public async delete(req: Request, res: Response): Promise<void> {
         const id = new Types.ObjectId(req.params.id);
 
-        UserOrchestrator.deleteOwner(id);
+        await UserOrchestrator.deleteOwner(id);
 
         res.status(httpStatus.NO_CONTENT).send();
     }
