@@ -1,145 +1,180 @@
-# Tessa API - E2E Tests Specification
+# Tessa API - Testing Documentation
 
 ## Table of Contents
 1. [Overview](#overview)
-2. [Test Stack](#test-stack)
+2. [Test Architecture](#test-architecture)
 3. [Project Structure](#project-structure)
-4. [Test Environment Setup](#test-environment-setup)
-5. [Mocks & Middlewares](#mocks--middlewares)
-6. [Database Setup](#database-setup)
-7. [Test Structure Patterns](#test-structure-patterns)
-8. [Response Validation](#response-validation)
-9. [Error Handling Tests](#error-handling-tests)
-10. [Naming Conventions](#naming-conventions)
-11. [Complete Test Template](#complete-test-template)
+4. [Getting Started](#getting-started)
+5. [Test Environment Setup](#test-environment-setup)
+6. [Mocking Strategy](#mocking-strategy)
+7. [Database Management](#database-management)
+8. [Writing Tests](#writing-tests)
+9. [Test Patterns & Best Practices](#test-patterns--best-practices)
+10. [CI/CD Integration](#cicd-integration)
+11. [Running Tests](#running-tests)
 
 ---
 
 ## Overview
 
 ### Purpose
-E2E (End-to-End) tests validate the complete request-response cycle of API endpoints, ensuring that all layers (routes → controllers → orchestrators → services → models → database) work together correctly.
+This project uses **End-to-End (E2E) tests** to validate API endpoints and ensure the complete request-response cycle works correctly. Tests verify the entire application stack from HTTP request → routes → controllers → orchestrators → services → database.
 
 ### Testing Philosophy
-- **Focus on endpoint logic**: Test the actual business logic and data flow through the API
-- **Mock external services**: Firebase Admin, Winston logging, and other external integrations should be mocked
-- **Use real MongoDB**: Tests run against a real MongoDB instance (via Docker) to ensure database operations work correctly
-- **Isolate test data**: Each test suite should set up and tear down its own data to prevent cross-contamination
-- **Skip external integrations**: Don't test actual Firebase authentication or third-party APIs
+- **Real Integration Testing**: Uses actual MongoDB instance (Docker in CI/CD, local for development)
+- **Mock External Services**: Firebase Admin and Winston logger are mocked to avoid external dependencies
+- **Test Isolation**: Each test suite cleans up its data to prevent interference between tests
+- **Comprehensive Coverage**: Tests cover success cases, validation errors, authorization, and edge cases
 
 ### Key Principles
-- Tests must be **fast** (use in-memory or local Docker MongoDB)
-- Tests must be **isolated** (no shared state between tests)
-- Tests must be **deterministic** (same results every run)
-- Tests must be **comprehensive** (cover happy paths, edge cases, and error scenarios)
+- ✅ Tests must be **fast** (optimized database operations)
+- ✅ Tests must be **isolated** (no shared state between tests)
+- ✅ Tests must be **deterministic** (same results every run)
+- ✅ Tests must be **maintainable** (clear structure and naming)
+- ✅ Tests must be **comprehensive** (cover all scenarios)
 
 ---
 
-## Test Stack
+## Test Architecture
 
-### Core Testing Libraries
+### Technology Stack
 
-```typescript
-// Testing Framework
-import { jest } from '@jest/globals';
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Test Framework** | Jest 29.7.0 | Test runner and assertion library |
+| **HTTP Testing** | Supertest 7.0.0 | HTTP assertions and request testing |
+| **Database** | MongoDB (Docker) | Real database for integration testing |
+| **TypeScript** | ts-jest 29.2.5 | TypeScript support in Jest |
+| **Mocking** | Jest mocks | Mock external services (Firebase, Winston) |
 
-// HTTP Testing
-import request from 'supertest';
+### Test Types
 
-// Database & App
-import { app as dbConnection } from '../modules/db.module';
-import { onDBConnectionsReady } from '../modules/db.module';
-import app from '../app'; // Express app instance
-```
+This project uses **E2E (End-to-End) tests** exclusively:
 
-### Required Dependencies
+- **E2E Tests**: Test complete user workflows through HTTP endpoints
+- **Location**: `test/routes/api/`
+- **Coverage**: Routes, Controllers, Orchestrators, Services, Database
 
-Add to `package.json`:
-
-```json
-{
-  "devDependencies": {
-    "@jest/globals": "^29.7.0",
-    "@types/jest": "^29.5.12",
-    "@types/supertest": "^6.0.2",
-    "jest": "^29.7.0",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5"
-  }
-}
-```
-
-### Jest Configuration
-
-Create `jest.config.js`:
-
-```javascript
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/**/*.interface.ts',
-    '!src/index.ts'
-  ],
-  coverageDirectory: 'coverage',
-  verbose: true,
-  forceExit: true,
-  clearMocks: true,
-  resetMocks: true,
-  restoreMocks: true,
-  testTimeout: 30000
-};
-```
+**Note**: Unit tests for individual services can be added in the future under `src/modules/*/tests/` if needed.
 
 ---
 
 ## Project Structure
 
-### Test File Organization
-
 ```
-src/
-├── routes/
-│   └── apiv1/
-│       ├── users/
-│       │   ├── user.routes.ts
-│       │   ├── user.controller.ts
-│       │   └── __tests__/
-│       │       └── user.routes.test.ts    # E2E tests here
-│       ├── owner/
-│       │   ├── owner.routes.ts
-│       │   ├── owner.controller.ts
-│       │   └── __tests__/
-│       │       └── owner.routes.test.ts
-│       └── register/
-│           └── __tests__/
-│               └── register.routes.test.ts
-├── modules/
-│   └── users/
-│       └── __tests__/
-│           └── user.service.test.ts      # Unit tests here
-└── test/
-    ├── helpers/
-    │   ├── testDbHelpers.ts              # DB utilities
-    │   ├── mockHelpers.ts                # Mock utilities
-    │   └── fixtures/                     # Test data
-    │       ├── users.fixture.ts
-    │       └── owners.fixture.ts
-    └── setup/
-        └── testSetup.ts                  # Global test setup
+tessa/
+├── src/                                    # Source code
+│   ├── routes/apiv1/                      # API routes
+│   ├── modules/                           # Business logic modules
+│   └── app/                               # Express app setup
+│
+├── test/                                  # Test files
+│   ├── common/                            # Shared test utilities
+│   │   ├── mocks/                         # Mock implementations
+│   │   │   ├── pluggins.ts               # Firebase & Winston mocks
+│   │   │   ├── authMock.ts               # Auth middleware mock
+│   │   │   └── testMocks.ts              # Other mocks
+│   │   └── helpers/                       # Test utilities
+│   │       ├── TestDbServices.ts         # MongoDB management
+│   │       ├── cleanUp.ts                # Cleanup after tests
+│   │       └── testDbHelpers.ts          # DB helper functions
+│   │
+│   └── routes/                            # E2E test suites
+│       └── api/                           # API route tests
+│           ├── register/
+│           │   └── register.routes.test.ts
+│           ├── owner/
+│           │   └── owner.routes.test.ts
+│           └── users/
+│               ├── user.get.routes.test.ts
+│               ├── user.post.routes.test.ts
+│               ├── user.patch.routes.test.ts
+│               └── user.delete.routes.test.ts
+│
+├── config/                                # Configuration files
+│   └── test.js                           # Test environment config
+│
+├── jest.config.ts                        # Jest configuration
+└── tests.md                              # This documentation
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+1. **Node.js**: Version 20+ (specified in CI/CD)
+2. **MongoDB**: Local instance or Docker container
+3. **npm**: For dependency management
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Install dev dependencies (if not already installed)
+npm install --save-dev @jest/globals @types/jest @types/supertest jest supertest ts-jest
+```
+
+### Quick Start
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (for development)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run tests with verbose output
+npm run test:verbose
 ```
 
 ---
 
 ## Test Environment Setup
 
+### Jest Configuration
+
+**File**: `jest.config.ts`
+
+```typescript
+import type { Config } from 'jest';
+
+const config: Config = {
+    preset: 'ts-jest',
+    testEnvironment: 'node',
+    roots: ['<rootDir>/test', '<rootDir>/src'],
+    testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
+    collectCoverageFrom: [
+        'src/**/*.ts',
+        '!src/**/*.d.ts',
+        '!src/**/*.interface.ts',
+        '!src/index.ts',
+    ],
+    coverageDirectory: 'coverage',
+    verbose: true,
+    forceExit: true,
+    clearMocks: true,
+    resetMocks: true,
+    restoreMocks: true,
+    testTimeout: 30000,
+    testPathIgnorePatterns: ['/node_modules/', '/config/'],
+    moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/src/$1',
+    },
+};
+
+export default config;
+```
+
 ### Environment Configuration
 
-Ensure `config/test.js` is properly configured:
+**File**: `config/test.js`
 
 ```javascript
 require('dotenv').config();
@@ -148,25 +183,25 @@ module.exports = {
     port: 3000,
     environment: 'test',
     authorization: {
-        username: 'test-user',
-        password: 'test-password',
+        username: '',
+        password: '',
     },
     mongodb: {
         uri: 'mongodb://localhost:27017',
     },
     firebase: {
         firebaseConfig: {
-            type: 'service_account',
-            project_id: 'test-project',
-            private_key_id: 'test-key-id',
-            privateKey: 'test-private-key',
-            client_email: 'test@test.iam.gserviceaccount.com',
-            client_id: 'test-client-id',
-            auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-            token_uri: 'https://oauth2.googleapis.com/token',
-            auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-            client_x509_cert_url: 'https://www.googleapis.com/robot/v1/metadata/x509/test.iam.gserviceaccount.com',
-            universe_domain: 'googleapis.com',
+            type: '',
+            project_id: '',
+            private_key_id: '',
+            privateKey: '',
+            client_email: '',
+            client_id: '',
+            auth_uri: '',
+            token_uri: '',
+            auth_provider_x509_cert_url: '',
+            client_x509_cert_url: '',
+            universe_domain: '',
         },
     },
 };
@@ -174,798 +209,717 @@ module.exports = {
 
 ### NPM Scripts
 
-Add to `package.json`:
+**File**: `package.json`
 
 ```json
 {
   "scripts": {
-    "test": "NODE_ENV=test jest",
+    "test": "NODE_ENV=test jest --runInBand",
     "test:watch": "NODE_ENV=test jest --watch",
-    "test:coverage": "NODE_ENV=test jest --coverage",
-    "test:verbose": "NODE_ENV=test jest --verbose"
+    "test:coverage": "NODE_ENV=test jest --coverage --runInBand",
+    "test:verbose": "NODE_ENV=test jest --verbose --runInBand"
   }
 }
 ```
 
+**Note**: `--runInBand` runs tests serially to avoid database conflicts.
+
 ---
 
-## Mocks & Middlewares
+## Mocking Strategy
 
 ### Firebase Admin Mock
 
-Mock Firebase authentication to avoid requiring actual Firebase credentials:
+**File**: `test/common/mocks/pluggins.ts`
+
+The Firebase mock simulates Firebase Admin SDK operations without requiring real credentials:
 
 ```typescript
-// At the top of test file, before other imports
-jest.mock('firebase-admin', () => ({
-    auth: jest.fn().mockReturnValue({
-        verifyIdToken: jest.fn().mockResolvedValue({
-            user_id: 'test-user-id-123',
-            email: 'test@example.com',
-            email_verified: true,
-        }),
-    }),
-    credential: {
-        cert: jest.fn(),
-    },
-    initializeApp: jest.fn(),
-}));
+class FirebaseMock {
+    private users: { [uid: string]: any } = {};
+
+    public async createUser(userData: object): Promise<any> {
+        const uid = 'mocked-user-uid';
+        this.users[uid] = userData;
+        return { uid, ...userData };
+    }
+
+    public async setCustomClaims(uid: string, role: string): Promise<void> {
+        if (this.users[uid]) {
+            this.users[uid].customClaims = { role };
+        }
+    }
+
+    public async deleteUser(uid: string): Promise<void> {
+        if (this.users[uid]) {
+            delete this.users[uid];
+        }
+    }
+}
+
+export default new FirebaseMock();
 ```
 
 ### Winston Logger Mock
 
-Suppress logging output during tests:
+Suppresses logging output during test execution:
 
 ```typescript
-jest.mock('winston', () => ({
+export const winstonMock = {
     info: jest.fn(),
+    debug: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn(),
+    addColors: jest.fn(),
+    configure: jest.fn(),
+    exceptions: { handle: jest.fn() },
+    transports: {
+        Console: jest.fn(),
+        File: jest.fn().mockImplementation(() => {}),
+    },
     format: {
-        combine: jest.fn(),
         timestamp: jest.fn(),
         colorize: jest.fn(),
         printf: jest.fn(),
+        combine: jest.fn(),
         json: jest.fn(),
     },
-    transports: {
-        Console: jest.fn(),
-        File: jest.fn(),
-    },
-    addColors: jest.fn(),
-    configure: jest.fn(),
-    exceptions: {
-        handle: jest.fn(),
-    },
-}));
+};
 ```
 
 ### Auth Middleware Mock
 
-For tests that don't need authentication, you can mock auth middleware:
+**File**: `test/common/mocks/authMock.ts`
+
+Mocks authentication middleware to inject test user credentials:
 
 ```typescript
-// Optional: Mock auth middleware if needed
-jest.mock('../../../middlewares/auth', () => ({
-    firebaseAuth: jest.fn((req, res, next) => {
-        req.userId = 'test-user-id-123';
+export const createAuthMock = (userId: string, role: string) => ({
+    apiBasicAuthorization: (req: any, res: any, next: any) => next(),
+    firebaseAuth: (req: any, res: any, next: any) => {
+        req.userId = userId;
+        req.role = role;
         next();
-    }),
-    apiBasicAuthorization: jest.fn((req, res, next) => next()),
-    appApiKeyAuthorization: jest.fn((req, res, next) => next()),
-}));
+    },
+    appApiKeyAuthorization: (req: any, res: any, next: any) => next(),
+});
 ```
 
-**Note**: For testing actual authentication logic, don't mock the auth middleware - instead mock only Firebase Admin's `verifyIdToken` to return controlled test data.
+### Usage in Tests
+
+```typescript
+import FirebaseMock, { winstonMock } from '../../../common/mocks/pluggins';
+
+// Mock Winston to suppress logs
+jest.mock('winston', () => winstonMock);
+
+// Mock Firebase to avoid real credentials
+jest.mock('../../../../src/modules/common/plugins/firebase', () => FirebaseMock);
+
+// Mock auth middleware with test user
+jest.mock('../../../../src/middlewares/auth', () =>
+    require('../../../common/mocks/authMock').createAuthMock(
+        '6819ad232a7d1f5f12288355',  // Test user ID
+        'OWNER'                        // Test user role
+    )
+);
+```
 
 ---
 
-## Database Setup
+## Database Management
 
-### Test Database Utilities
+### TestDbServices
 
-Create `src/test/helpers/testDbHelpers.ts`:
+**File**: `test/common/helpers/TestDbServices.ts`
+
+Manages MongoDB connections and database lifecycle:
 
 ```typescript
-import mongoose from 'mongoose';
-import { app as dbConnection } from '../../modules/db.module';
-
-/**
- * Clean up all collections in the test database
- */
-export async function cleanDatabase(): Promise<void> {
-    const collections = dbConnection.collections;
+class TestDbServices {
+    // Connect to database
+    async connect(dbName: string): Promise<any | null>
     
-    for (const key in collections) {
-        const collection = collections[key];
-        await collection.deleteMany({});
-    }
-}
-
-/**
- * Close all database connections
- */
-export async function closeDatabase(): Promise<void> {
-    await dbConnection.close();
-}
-
-/**
- * Create test data helper
- */
-export async function createTestData<T>(
-    model: mongoose.Model<T>,
-    data: Partial<T> | Partial<T>[]
-): Promise<T | T[]> {
-    if (Array.isArray(data)) {
-        return await model.insertMany(data);
-    }
-    return await model.create(data);
+    // Get database instance
+    async getDb(dbName: string): Promise<mongoose.mongo.Db | null>
+    
+    // Create database with collection
+    async createDb(dbName: string, collection: string): Promise<any | null>
+    
+    // Close connections and clean up all test databases
+    async close(): Promise<void>
 }
 ```
 
-### Setup and Teardown Pattern
+**Key Features**:
+- Manages MongoDB client connections
+- Creates test databases on demand
+- Drops all test databases on cleanup (except system databases: admin, local, config)
+- Thread-safe connection management
 
-Every test file should follow this pattern:
+### CleanUp Helper
+
+**File**: `test/common/helpers/cleanUp.ts`
+
+Closes application and database connections after tests:
 
 ```typescript
+async function cleanUp() {
+    await App.close();      // Close Express app
+    await app.close();      // Close MongoDB connection
+}
+
+export default cleanUp;
+```
+
+### Database Cleanup Pattern
+
+Each test suite follows this pattern:
+
+```typescript
+beforeAll((done) => {
+    // Wait for MongoDB connection to be ready
+    onDBConnectionsReady(() => {
+        done();
+    });
+});
+
+beforeEach(async () => {
+    // Clean collections before each test for isolation
+    await OwnerModel.deleteMany({});
+    await UserModel.deleteMany({});
+});
+
+afterAll(async () => {
+    // Close database connections and cleanup
+    await TestDbServices.close();
+    jest.restoreAllMocks();
+    await cleanUp();
+});
+```
+
+---
+
+## Writing Tests
+
+### Test File Template
+
+```typescript
+/**
+ * [Module] Routes - E2E Tests
+ *
+ * Tests the [description] endpoints including:
+ * - [Functionality 1]
+ * - [Functionality 2]
+ */
+
 import request from 'supertest';
-import { onDBConnectionsReady } from '../../../modules/db.module';
-import { cleanDatabase, closeDatabase } from '../../../test/helpers/testDbHelpers';
-import app from '../../../app';
+import FirebaseMock, { winstonMock } from '../../../common/mocks/pluggins';
+import { onDBConnectionsReady } from '../../../../src/modules/db.module';
+import cleanUp from '../../../common/helpers/cleanUp';
+import app from '../../../../src/app';
+import UserModel from '../../../../src/modules/users/user.model';
+import TestDbServices from '../../../common/helpers/TestDbServices';
 
-// Mock Firebase and Winston (see Mocks section)
-jest.mock('firebase-admin', () => ({ /* ... */ }));
-jest.mock('winston', () => ({ /* ... */ }));
+// Setup mocks
+jest.mock('winston', () => winstonMock);
+jest.mock('../../../../src/modules/common/plugins/firebase', () => FirebaseMock);
+jest.mock('../../../../src/middlewares/auth', () =>
+    require('../../../common/mocks/authMock').createAuthMock(
+        '6819ad232a7d1f5f12288355',
+        'OWNER'
+    )
+);
 
-describe('User Routes - E2E Tests', () => {
-    // Wait for DB connection before running any tests
+describe('[Module] Routes - E2E Tests', () => {
     beforeAll((done) => {
         onDBConnectionsReady(() => {
             done();
         });
     });
 
-    // Clean database before each test to ensure isolation
     beforeEach(async () => {
-        await cleanDatabase();
+        await UserModel.deleteMany({});
     });
 
-    // Close DB connection after all tests complete
     afterAll(async () => {
-        await closeDatabase();
+        await TestDbServices.close();
+        jest.restoreAllMocks();
+        await cleanUp();
     });
 
-    // Tests go here...
-});
-```
-
----
-
-## Test Structure Patterns
-
-### Describe Block Hierarchy
-
-Organize tests using a clear hierarchy:
-
-```typescript
-describe('[Module] Routes - E2E Tests', () => {
-    describe('POST /api/v1/resource', () => {
+    describe('POST /tessa/v1/endpoint', () => {
         describe('Success Cases', () => {
-            it('should create a new resource with valid data', async () => {
-                // Test implementation
-            });
+            it('should create resource with valid data', async () => {
+                const data = { name: 'Test', email: 'test@example.com' };
+                
+                const response = await request(app.app)
+                    .post('/tessa/v1/endpoint')
+                    .send(data);
 
-            it('should return 201 status code', async () => {
-                // Test implementation
+                expect(response.status).toBe(201);
+                expect(response.body).toHaveProperty('status', 'success');
+                expect(response.body.data.name).toBe(data.name);
             });
         });
 
         describe('Validation Errors', () => {
             it('should return 400 when required field is missing', async () => {
-                // Test implementation
-            });
+                const response = await request(app.app)
+                    .post('/tessa/v1/endpoint')
+                    .send({});
 
-            it('should return 400 when field format is invalid', async () => {
-                // Test implementation
+                expect(response.status).toBe(400);
+                expect(response.body).toHaveProperty('message');
             });
+        });
+    });
+});
+```
+
+### Test Structure Guidelines
+
+#### 1. Describe Block Hierarchy
+
+```typescript
+describe('[Module] Routes - E2E Tests', () => {
+    describe('[HTTP METHOD] /path/to/endpoint', () => {
+        describe('Success Cases', () => {
+            it('should [expected behavior]', async () => {});
+        });
+
+        describe('Validation Errors', () => {
+            it('should return 400 when [condition]', async () => {});
         });
 
         describe('Authorization Errors', () => {
-            it('should return 401 when token is missing', async () => {
-                // Test implementation
-            });
+            it('should return 401 when [condition]', async () => {});
+        });
+
+        describe('Not Found Errors', () => {
+            it('should return 404 when [condition]', async () => {});
         });
     });
-
-    describe('GET /api/v1/resource/:id', () => {
-        // Similar structure...
-    });
 });
 ```
 
-### Test Organization Best Practices
-
-1. **Group by HTTP method and endpoint**
-2. **Separate success cases from error cases**
-3. **Use descriptive test names** that explain what is being tested
-4. **Follow AAA pattern**: Arrange → Act → Assert
-
----
-
-## Response Validation
-
-### Common Validation Patterns
-
-#### Status Code Validation
+#### 2. AAA Pattern (Arrange-Act-Assert)
 
 ```typescript
-it('should return 200 status code', async () => {
-    const response = await request(app)
-        .get('/api/v1/users')
-        .expect(200);
+it('should create a new user with valid data', async () => {
+    // Arrange: Prepare test data
+    const userData = {
+        name: 'John Doe',
+        email: 'john@example.com',
+        password: 'SecurePass123!',
+    };
+
+    // Act: Execute the operation
+    const response = await request(app.app)
+        .post('/tessa/v1/user')
+        .send(userData);
+
+    // Assert: Verify the results
+    expect(response.status).toBe(201);
+    expect(response.body.data.name).toBe(userData.name);
 });
 ```
 
-#### Response Body Structure
-
-```typescript
-it('should return user data with correct structure', async () => {
-    const response = await request(app)
-        .post('/api/v1/users')
-        .send({ name: 'John Doe', email: 'john@example.com' })
-        .expect(201);
-
-    expect(response.body).toHaveProperty('data');
-    expect(response.body.data).toHaveProperty('_id');
-    expect(response.body.data).toHaveProperty('name', 'John Doe');
-    expect(response.body.data).toHaveProperty('email', 'john@example.com');
-    expect(response.body.data).toHaveProperty('createdAt');
-});
-```
-
-#### Array Response Validation
-
-```typescript
-it('should return an array of users', async () => {
-    // Arrange: Create test data
-    await createTestData(UserModel, [
-        { name: 'User 1', email: 'user1@example.com' },
-        { name: 'User 2', email: 'user2@example.com' },
-    ]);
-
-    // Act
-    const response = await request(app)
-        .get('/api/v1/users')
-        .expect(200);
-
-    // Assert
-    expect(response.body).toHaveProperty('data');
-    expect(Array.isArray(response.body.data)).toBe(true);
-    expect(response.body.data).toHaveLength(2);
-    expect(response.body.data[0]).toHaveProperty('name');
-    expect(response.body.data[0]).toHaveProperty('email');
-});
-```
-
-#### Nested Object Validation
-
-```typescript
-it('should return nested owner data', async () => {
-    const response = await request(app)
-        .get('/api/v1/users/123')
-        .expect(200);
-
-    expect(response.body.data).toHaveProperty('owner');
-    expect(response.body.data.owner).toHaveProperty('_id');
-    expect(response.body.data.owner).toHaveProperty('name');
-});
-```
-
-#### Database Persistence Validation
+#### 3. Testing Database Persistence
 
 ```typescript
 it('should persist user to database', async () => {
-    const userData = { name: 'Jane Doe', email: 'jane@example.com' };
+    const userData = { name: 'Test User', email: 'test@example.com' };
     
-    const response = await request(app)
-        .post('/api/v1/users')
-        .send(userData)
-        .expect(201);
+    const response = await request(app.app)
+        .post('/tessa/v1/user')
+        .send(userData);
 
     // Verify in database
     const savedUser = await UserModel.findById(response.body.data._id);
     expect(savedUser).toBeDefined();
     expect(savedUser?.name).toBe(userData.name);
-    expect(savedUser?.email).toBe(userData.email);
 });
 ```
 
 ---
 
-## Error Handling Tests
+## Test Patterns & Best Practices
 
-### 400 Bad Request - Validation Errors
+### Response Validation
 
+#### Status Codes
 ```typescript
-describe('Validation Errors', () => {
-    it('should return 400 when name is missing', async () => {
-        const response = await request(app)
-            .post('/api/v1/users')
-            .send({ email: 'test@example.com' }) // Missing name
-            .expect(400);
+expect(response.status).toBe(200);  // Success
+expect(response.status).toBe(201);  // Created
+expect(response.status).toBe(400);  // Bad Request
+expect(response.status).toBe(401);  // Unauthorized
+expect(response.status).toBe(404);  // Not Found
+expect(response.status).toBe(409);  // Conflict
+```
 
-        expect(response.body).toHaveProperty('message');
-        expect(response.body.message).toContain('name');
-    });
+#### Response Structure
+```typescript
+expect(response.body).toHaveProperty('status', 'success');
+expect(response.body).toHaveProperty('data');
+expect(response.body.data).toHaveProperty('_id');
+expect(response.body.data).toHaveProperty('name');
+```
 
-    it('should return 400 when email format is invalid', async () => {
-        const response = await request(app)
-            .post('/api/v1/users')
-            .send({ name: 'John Doe', email: 'invalid-email' })
-            .expect(400);
+#### Array Responses
+```typescript
+expect(Array.isArray(response.body.data)).toBe(true);
+expect(response.body.data).toHaveLength(2);
+expect(response.body.data[0]).toHaveProperty('email');
+```
 
-        expect(response.body).toHaveProperty('message');
-        expect(response.body.message).toContain('email');
-    });
+### Error Testing
 
-    it('should return 400 when required fields are empty strings', async () => {
-        const response = await request(app)
-            .post('/api/v1/users')
-            .send({ name: '', email: '' })
-            .expect(400);
+#### Validation Errors (400)
+```typescript
+it('should return 400 when email is missing', async () => {
+    const response = await request(app.app)
+        .post('/tessa/v1/register')
+        .send({ name: 'Test' }); // Missing email
 
-        expect(response.body).toHaveProperty('message');
-    });
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('message');
 });
 ```
 
-### 401 Unauthorized - Authentication Errors
-
+#### Conflict Errors (409)
 ```typescript
-describe('Authorization Errors', () => {
-    beforeEach(() => {
-        // Re-mock Firebase to reject token for this test
-        jest.spyOn(admin.auth(), 'verifyIdToken')
-            .mockRejectedValueOnce(new Error('Invalid token'));
-    });
+it('should return 409 when email already exists', async () => {
+    const data = { name: 'Test', email: 'test@example.com' };
+    
+    // Create first user
+    await request(app.app).post('/tessa/v1/register').send(data);
+    
+    // Try to create duplicate
+    const response = await request(app.app)
+        .post('/tessa/v1/register')
+        .send(data);
 
-    it('should return 401 when token is invalid', async () => {
-        const response = await request(app)
-            .get('/api/v1/users')
-            .set('userauthorization', 'invalid-token')
-            .expect(401);
-
-        expect(response.body).toHaveProperty('message');
-        expect(response.body.message).toContain('Unauthorized');
-    });
-
-    it('should return 401 when token is missing', async () => {
-        const response = await request(app)
-            .get('/api/v1/users')
-            .expect(401);
-
-        expect(response.body).toHaveProperty('message');
-    });
+    expect(response.status).toBe(409);
 });
 ```
 
-### 404 Not Found - Resource Not Found
+### Naming Conventions
 
-```typescript
-describe('Not Found Errors', () => {
-    it('should return 404 when user does not exist', async () => {
-        const nonExistentId = '507f1f77bcf86cd799439011'; // Valid ObjectId format
-        
-        const response = await request(app)
-            .get(`/api/v1/users/${nonExistentId}`)
-            .expect(404);
+#### Test Files
+- Pattern: `[module].[method].routes.test.ts`
+- Examples: `user.get.routes.test.ts`, `owner.routes.test.ts`
 
-        expect(response.body).toHaveProperty('message');
-        expect(response.body.message).toContain('not found');
-    });
-
-    it('should return 400 when ID format is invalid', async () => {
-        const response = await request(app)
-            .get('/api/v1/users/invalid-id-format')
-            .expect(400);
-
-        expect(response.body).toHaveProperty('message');
-    });
-});
-```
-
-### 409 Conflict - Duplicate Resource
-
-```typescript
-describe('Conflict Errors', () => {
-    it('should return 409 when email already exists', async () => {
-        const userData = { name: 'John Doe', email: 'john@example.com' };
-        
-        // Create first user
-        await request(app)
-            .post('/api/v1/users')
-            .send(userData)
-            .expect(201);
-
-        // Try to create duplicate
-        const response = await request(app)
-            .post('/api/v1/users')
-            .send(userData)
-            .expect(409);
-
-        expect(response.body).toHaveProperty('message');
-        expect(response.body.message).toContain('already exists');
-    });
-});
-```
-
----
-
-## Naming Conventions
-
-### Test File Naming
-
-- **Pattern**: `[module].routes.test.ts`
-- **Examples**:
-  - `user.routes.test.ts`
-  - `owner.routes.test.ts`
-  - `register.routes.test.ts`
-  - `calls.routes.test.ts`
-
-### Test Description Naming
-
+#### Test Descriptions
 ```typescript
 // ✅ Good: Clear and specific
-describe('POST /api/v1/users', () => {
-    it('should create a new user with valid data', async () => {});
-    it('should return 400 when email is missing', async () => {});
-});
+it('should create a new user with valid data', async () => {});
+it('should return 400 when email format is invalid', async () => {});
 
 // ❌ Bad: Vague or unclear
-describe('User tests', () => {
-    it('works', async () => {});
-    it('test validation', async () => {});
+it('works', async () => {});
+it('test validation', async () => {});
+```
+
+### Common Patterns
+
+#### Testing GET Endpoints
+```typescript
+describe('GET /tessa/v1/user', () => {
+    it('should return empty array when no users exist', async () => {
+        const response = await request(app.app).get('/tessa/v1/user');
+        
+        expect(response.status).toBe(200);
+        expect(response.body.data).toEqual([]);
+    });
+
+    it('should return all users', async () => {
+        // Create test data
+        await UserModel.insertMany([
+            { name: 'User 1', email: 'user1@example.com' },
+            { name: 'User 2', email: 'user2@example.com' },
+        ]);
+
+        const response = await request(app.app).get('/tessa/v1/user');
+        
+        expect(response.status).toBe(200);
+        expect(response.body.data).toHaveLength(2);
+    });
 });
 ```
 
-### Variable Naming
-
+#### Testing POST Endpoints
 ```typescript
-// ✅ Good: Descriptive
-const validUserData = { name: 'John Doe', email: 'john@example.com' };
-const existingUser = await createTestData(UserModel, validUserData);
-const response = await request(app).get('/api/v1/users');
+describe('POST /tessa/v1/user', () => {
+    it('should create resource with valid data', async () => {
+        const data = { name: 'John', email: 'john@example.com' };
+        
+        const response = await request(app.app)
+            .post('/tessa/v1/user')
+            .send(data);
 
-// ❌ Bad: Unclear
-const data = { name: 'John Doe', email: 'john@example.com' };
-const user = await createTestData(UserModel, data);
-const res = await request(app).get('/api/v1/users');
+        expect(response.status).toBe(201);
+        expect(response.body.data).toHaveProperty('_id');
+    });
+});
+```
+
+#### Testing PATCH Endpoints
+```typescript
+describe('PATCH /tessa/v1/user/:id', () => {
+    it('should update user data', async () => {
+        const user = await UserModel.create({
+            name: 'Original Name',
+            email: 'test@example.com'
+        });
+
+        const response = await request(app.app)
+            .patch(`/tessa/v1/user/${user._id}`)
+            .send({ name: 'Updated Name' });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.name).toBe('Updated Name');
+    });
+});
+```
+
+#### Testing DELETE Endpoints
+```typescript
+describe('DELETE /tessa/v1/user/:id', () => {
+    it('should delete user by ID', async () => {
+        const user = await UserModel.create({
+            name: 'Test User',
+            email: 'test@example.com'
+        });
+
+        const response = await request(app.app)
+            .delete(`/tessa/v1/user/${user._id}`);
+
+        expect(response.status).toBe(200);
+        
+        // Verify deletion
+        const deletedUser = await UserModel.findById(user._id);
+        expect(deletedUser).toBeNull();
+    });
+});
 ```
 
 ---
 
-## Complete Test Template
+## CI/CD Integration
 
-### Full Example: User Routes Test
+### GitHub Actions Workflow
+
+**File**: `.github/workflows/integration_and_deployment_dev.yml`
+
+```yaml
+name: Continuous Integration
+
+on: [pull_request]
+
+jobs:
+  lint:
+    name: Run Linter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm run test
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+```
+
+### Why MongoDB Service Container?
+
+Tests require a **real MongoDB instance** because:
+
+1. **E2E Testing**: Tests verify complete database operations
+2. **Mongoose Integration**: Real database connections are tested
+3. **Data Persistence**: Tests verify data is correctly saved and retrieved
+4. **Transaction Support**: Database transactions and operations are tested
+
+**Benefits**:
+- ✅ Automatic setup in CI/CD pipeline
+- ✅ Health checks ensure MongoDB is ready before tests run
+- ✅ Automatic cleanup after tests complete
+- ✅ No manual Docker configuration needed
+
+---
+
+## Running Tests
+
+### Local Development
+
+#### Prerequisites
+```bash
+# Ensure MongoDB is running locally
+docker run -d -p 27017:27017 mongo:7.0
+
+# Or use local MongoDB installation
+# MongoDB should be accessible at mongodb://localhost:27017
+```
+
+#### Run Tests
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run with coverage report
+npm run test:coverage
+
+# Run with verbose output
+npm run test:verbose
+```
+
+### Debugging Tests
+
+#### VSCode Launch Configuration
+
+Add to `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Jest Debug",
+      "program": "${workspaceFolder}/node_modules/.bin/jest",
+      "args": [
+        "--runInBand",
+        "--no-cache",
+        "--watchAll=false"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "test"
+      }
+    }
+  ]
+}
+```
+
+#### Debug Single Test File
+```bash
+# Run specific test file
+npm test -- test/routes/api/users/user.get.routes.test.ts
+
+# Run tests matching pattern
+npm test -- --testNamePattern="should create a new user"
+```
+
+### Coverage Reports
+
+```bash
+# Generate coverage report
+npm run test:coverage
+
+# Coverage will be generated in ./coverage directory
+# Open ./coverage/lcov-report/index.html in browser
+```
+
+---
+
+## Best Practices Summary
+
+### DO ✅
+
+- **Use descriptive test names** that explain what is being tested
+- **Follow AAA pattern**: Arrange → Act → Assert
+- **Test database persistence** when creating/updating records
+- **Clean database before each test** for isolation
+- **Mock external services** (Firebase, Winston) consistently
+- **Test both success and error cases** comprehensively
+- **Verify response structure** including nested objects
+- **Use TypeScript types** for better IDE support
+- **Run tests serially** (`--runInBand`) to avoid conflicts
+
+### DON'T ❌
+
+- **Don't share state between tests** - always clean up
+- **Don't mock the database** - use real MongoDB for E2E tests
+- **Don't hard-code IDs** - generate or use returned IDs
+- **Don't skip cleanup** - always close connections in `afterAll`
+- **Don't write vague test names** - be specific about what's tested
+- **Don't test implementation details** - test behavior
+- **Don't forget to wait for async operations** - use `async/await`
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### "Connection refused" Error
+```
+Error: connect ECONNREFUSED 127.0.0.1:27017
+```
+**Solution**: Ensure MongoDB is running locally or in Docker
+
+```bash
+docker run -d -p 27017:27017 mongo:7.0
+```
+
+#### Tests Timeout
+```
+Error: Timeout - Async callback was not invoked within the 30000 ms timeout
+```
+**Solution**: 
+- Check if database connection is established
+- Increase timeout in `jest.config.ts`: `testTimeout: 60000`
+- Verify `beforeAll` callback is being called
+
+#### Database Not Cleaning
+```
+Error: E11000 duplicate key error
+```
+**Solution**: Ensure `beforeEach` cleanup is working
 
 ```typescript
-/**
- * User Routes - E2E Tests
- * 
- * Tests the complete user management endpoints including:
- * - Creating users
- * - Retrieving users
- * - Updating user roles
- * - Deleting users
- */
-
-import request from 'supertest';
-import { onDBConnectionsReady } from '../../../modules/db.module';
-import { cleanDatabase, closeDatabase } from '../../../test/helpers/testDbHelpers';
-import app from '../../../app';
-import UserModel from '../../../modules/users/user.model';
-
-// Mock Firebase Admin to avoid requiring real credentials
-jest.mock('firebase-admin', () => ({
-    auth: jest.fn().mockReturnValue({
-        verifyIdToken: jest.fn().mockResolvedValue({
-            user_id: 'test-user-id-123',
-            email: 'test@example.com',
-            email_verified: true,
-        }),
-    }),
-    credential: {
-        cert: jest.fn(),
-    },
-    initializeApp: jest.fn(),
-}));
-
-// Mock Winston to suppress logging during tests
-jest.mock('winston', () => ({
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    format: {
-        combine: jest.fn(),
-        timestamp: jest.fn(),
-        colorize: jest.fn(),
-        printf: jest.fn(),
-        json: jest.fn(),
-    },
-    transports: {
-        Console: jest.fn(),
-        File: jest.fn(),
-    },
-    addColors: jest.fn(),
-    configure: jest.fn(),
-    exceptions: {
-        handle: jest.fn(),
-    },
-}));
-
-describe('User Routes - E2E Tests', () => {
-    // Setup: Wait for database connection
-    beforeAll((done) => {
-        onDBConnectionsReady(() => {
-            done();
-        });
-    });
-
-    // Setup: Clean database before each test for isolation
-    beforeEach(async () => {
-        await cleanDatabase();
-    });
-
-    // Cleanup: Close database connection after all tests
-    afterAll(async () => {
-        await closeDatabase();
-    });
-
-    describe('POST /api/v1/users', () => {
-        describe('Success Cases', () => {
-            it('should create a new user with valid data', async () => {
-                // Arrange
-                const userData = {
-                    name: 'John Doe',
-                    email: 'john@example.com',
-                    phoneNumber: '+1234567890',
-                    role: 'user',
-                };
-
-                // Act
-                const response = await request(app)
-                    .post('/api/v1/users')
-                    .send(userData)
-                    .expect(201);
-
-                // Assert
-                expect(response.body).toHaveProperty('data');
-                expect(response.body.data).toHaveProperty('_id');
-                expect(response.body.data.name).toBe(userData.name);
-                expect(response.body.data.email).toBe(userData.email);
-                expect(response.body.data.phoneNumber).toBe(userData.phoneNumber);
-                expect(response.body.data.role).toBe(userData.role);
-            });
-
-            it('should persist user to database', async () => {
-                // Arrange
-                const userData = {
-                    name: 'Jane Smith',
-                    email: 'jane@example.com',
-                    phoneNumber: '+9876543210',
-                    role: 'admin',
-                };
-
-                // Act
-                const response = await request(app)
-                    .post('/api/v1/users')
-                    .send(userData)
-                    .expect(201);
-
-                // Assert
-                const savedUser = await UserModel.findById(response.body.data._id);
-                expect(savedUser).toBeDefined();
-                expect(savedUser?.name).toBe(userData.name);
-                expect(savedUser?.email).toBe(userData.email);
-            });
-        });
-
-        describe('Validation Errors', () => {
-            it('should return 400 when name is missing', async () => {
-                // Arrange
-                const invalidData = {
-                    email: 'test@example.com',
-                    phoneNumber: '+1234567890',
-                    role: 'user',
-                };
-
-                // Act
-                const response = await request(app)
-                    .post('/api/v1/users')
-                    .send(invalidData)
-                    .expect(400);
-
-                // Assert
-                expect(response.body).toHaveProperty('message');
-            });
-
-            it('should return 400 when email format is invalid', async () => {
-                // Arrange
-                const invalidData = {
-                    name: 'John Doe',
-                    email: 'invalid-email',
-                    phoneNumber: '+1234567890',
-                    role: 'user',
-                };
-
-                // Act
-                const response = await request(app)
-                    .post('/api/v1/users')
-                    .send(invalidData)
-                    .expect(400);
-
-                // Assert
-                expect(response.body).toHaveProperty('message');
-            });
-        });
-    });
-
-    describe('GET /api/v1/users', () => {
-        describe('Success Cases', () => {
-            it('should return empty array when no users exist', async () => {
-                // Act
-                const response = await request(app)
-                    .get('/api/v1/users')
-                    .expect(200);
-
-                // Assert
-                expect(response.body).toHaveProperty('data');
-                expect(Array.isArray(response.body.data)).toBe(true);
-                expect(response.body.data).toHaveLength(0);
-            });
-
-            it('should return all users', async () => {
-                // Arrange: Create test users
-                const users = [
-                    { name: 'User 1', email: 'user1@example.com', role: 'user' },
-                    { name: 'User 2', email: 'user2@example.com', role: 'admin' },
-                ];
-                await UserModel.insertMany(users);
-
-                // Act
-                const response = await request(app)
-                    .get('/api/v1/users')
-                    .expect(200);
-
-                // Assert
-                expect(response.body.data).toHaveLength(2);
-                expect(response.body.data[0]).toHaveProperty('name');
-                expect(response.body.data[0]).toHaveProperty('email');
-                expect(response.body.data[0]).toHaveProperty('role');
-            });
-        });
-    });
-
-    describe('GET /api/v1/users/:id', () => {
-        describe('Success Cases', () => {
-            it('should return user by ID', async () => {
-                // Arrange: Create a test user
-                const testUser = await UserModel.create({
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    role: 'user',
-                });
-
-                // Act
-                const response = await request(app)
-                    .get(`/api/v1/users/${testUser._id}`)
-                    .expect(200);
-
-                // Assert
-                expect(response.body.data._id).toBe(testUser._id.toString());
-                expect(response.body.data.name).toBe(testUser.name);
-                expect(response.body.data.email).toBe(testUser.email);
-            });
-        });
-
-        describe('Not Found Errors', () => {
-            it('should return 404 when user does not exist', async () => {
-                // Arrange: Valid but non-existent ObjectId
-                const nonExistentId = '507f1f77bcf86cd799439011';
-
-                // Act
-                const response = await request(app)
-                    .get(`/api/v1/users/${nonExistentId}`)
-                    .expect(404);
-
-                // Assert
-                expect(response.body).toHaveProperty('message');
-            });
-        });
-
-        describe('Validation Errors', () => {
-            it('should return 400 when ID format is invalid', async () => {
-                // Act
-                const response = await request(app)
-                    .get('/api/v1/users/invalid-id')
-                    .expect(400);
-
-                // Assert
-                expect(response.body).toHaveProperty('message');
-            });
-        });
-    });
-
-    describe('PATCH /api/v1/users/:id/role', () => {
-        describe('Success Cases', () => {
-            it('should update user role', async () => {
-                // Arrange: Create a test user
-                const testUser = await UserModel.create({
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    role: 'user',
-                });
-
-                const updateData = { role: 'admin' };
-
-                // Act
-                const response = await request(app)
-                    .patch(`/api/v1/users/${testUser._id}/role`)
-                    .send(updateData)
-                    .expect(200);
-
-                // Assert
-                expect(response.body.data.role).toBe('admin');
-                
-                // Verify in database
-                const updatedUser = await UserModel.findById(testUser._id);
-                expect(updatedUser?.role).toBe('admin');
-            });
-        });
-
-        describe('Validation Errors', () => {
-            it('should return 400 when role is invalid', async () => {
-                // Arrange: Create a test user
-                const testUser = await UserModel.create({
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    role: 'user',
-                });
-
-                const invalidData = { role: 'invalid-role' };
-
-                // Act
-                const response = await request(app)
-                    .patch(`/api/v1/users/${testUser._id}/role`)
-                    .send(invalidData)
-                    .expect(400);
-
-                // Assert
-                expect(response.body).toHaveProperty('message');
-            });
-        });
-    });
-
-    describe('DELETE /api/v1/users/:id', () => {
-        describe('Success Cases', () => {
-            it('should delete user by ID', async () => {
-                // Arrange: Create a test user
-                const testUser = await UserModel.create({
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    role: 'user',
-                });
-
-                // Act
-                const response = await request(app)
-                    .delete(`/api/v1/users/${testUser._id}`)
-                    .expect(200);
-
-                // Assert
-                expect(response.body).toHaveProperty('data');
-                
-                // Verify deletion in database
-                const deletedUser = await UserModel.findById(testUser._id);
-                expect(deletedUser).
+beforeEach(async () => {
