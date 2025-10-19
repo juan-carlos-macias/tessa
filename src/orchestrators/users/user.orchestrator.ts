@@ -34,6 +34,11 @@ class UserOrchestrator {
             if (createdUser) {
                 await UserService.deleteUser(userId);
             }
+
+            if (error instanceof ApiError) {
+                throw error;
+            }
+
             throw new ApiError(
                 httpStatus.INTERNAL_SERVER_ERROR,
                 'Failed to create user'
@@ -66,11 +71,16 @@ class UserOrchestrator {
             return createdOwner;
         } catch (error) {
             if (createdOwner) {
-                await UserService.deleteUser(userId);
+                await OwnerService.deleteOwner(userId);
             }
+
+            if (error instanceof ApiError) {
+                throw error;
+            }
+
             throw new ApiError(
                 httpStatus.INTERNAL_SERVER_ERROR,
-                'Failed to create user'
+                'Failed to create owner'
             );
         }
     }
@@ -101,6 +111,10 @@ class UserOrchestrator {
                         'Failed to delete user and rollback failed. Data inconsistency detected.'
                     );
                 }
+            }
+
+            if (error instanceof ApiError) {
+                throw error;
             }
 
             throw new ApiError(
@@ -134,6 +148,10 @@ class UserOrchestrator {
                         'Failed to delete user and rollback failed. Data inconsistency detected.'
                     );
                 }
+            }
+
+            if (error instanceof ApiError) {
+                throw error;
             }
 
             throw new ApiError(

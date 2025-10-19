@@ -58,7 +58,7 @@ class UserController {
     public async delete(req: Request, res: Response): Promise<void> {
         const id = new Types.ObjectId(req.params.id);
 
-        UserOrchestrator.deleteUser(id);
+        await UserOrchestrator.deleteUser(id);
 
         res.status(httpStatus.NO_CONTENT).send();
     }
